@@ -6,13 +6,18 @@
         <sourceOutputDir name="target/generated-sources/annotations" />
         <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
         <outputRelativeToContentRoot value="true" />
+        <module name="config-Service" />
+        <module name="API-Gateway" />
+        <module name="Discovery-Service" />
         <module name="Authentification-service" />
       </profile>
     </annotationProcessing>
   </component>
   <component name="JavacSettings">
     <option name="ADDITIONAL_OPTIONS_OVERRIDE">
-      <module name="Authentification-service" options="-parameters" />
+      <module name="API-Gateway" options="" />
+      <module name="Authentification-service" options="" />
+      <module name="Discovery-Service" options="" />
     </option>
   </component>
 </project>
