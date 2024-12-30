@@ -1,0 +1,81 @@
+name: End-to-End Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  java-e2e:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_MULTIPLE_DATABASES: myprof_auth,myprof_profile,myprof_authorization
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build Services
+        run: |
+          mvn clean package -DskipTests
+
+      - name: Start Services
+        run: |
+          # Start each service in background
+          for service in auth-service profile-service authorization-service user-service; do
+            cd $service
+            java -jar target/*.jar --spring.profiles.active=test &
+            cd ..
+          done
+          
+          # Wait for services to be ready
+          sleep 60
+
+      - name: Run Cucumber Tests
+        run: |
+          cd e2e-tests
+          mvn clean verify -Dcucumber.filter.tags="@e2e"
+
+      - name: Generate Cucumber Report
+        if: always()
+        run: |
+          cd e2e-tests
+          mvn cluecumber-report:reporting
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: e2e-test-results
+          path: |
+            e2e-tests/target/cucumber-reports
+            e2e-tests/target/generated-report

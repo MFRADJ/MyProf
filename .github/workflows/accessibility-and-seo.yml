@@ -1,0 +1,86 @@
+name: Accessibility and SEO
+
+on:
+  schedule:
+    - cron: '0 0 * * 1'  # Run weekly on Mondays
+  workflow_dispatch:
+
+jobs:
+  java-web-checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_MULTIPLE_DATABASES: myprof_auth,myprof_profile,myprof_authorization
+        ports:
+          - 5432:5432
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build Services
+        run: |
+          mvn clean package -DskipTests
+
+      - name: Start Services
+        run: |
+          for service in auth-service profile-service authorization-service user-service; do
+            cd $service
+            java -jar target/*.jar --spring.profiles.active=test &
+            cd ..
+          done
+          sleep 60
+
+      - name: Install Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Testing Tools
+        run: |
+          npm install -g lighthouse pa11y-ci axe-core puppeteer
+
+      - name: Run Accessibility Tests
+        run: |
+          pa11y-ci --config .pa11yci.json
+        continue-on-error: true
+
+      - name: Run Lighthouse Audit
+        run: |
+          lighthouse http://localhost:8080 \
+            --output html \
+            --output json \
+            --output-path ./lighthouse-report \
+            --chrome-flags="--headless --no-sandbox --disable-gpu"
+
+      - name: Check API Documentation
+        run: |
+          # Check if Swagger UI is accessible
+          curl -f http://localhost:8080/swagger-ui.html || echo "Swagger UI not found"
+          
+          # Check if OpenAPI spec is available
+          curl -f http://localhost:8080/v3/api-docs || echo "OpenAPI spec not found"
+
+      - name: Check Spring Actuator Endpoints
+        run: |
+          curl -f http://localhost:8080/actuator/health || echo "Health endpoint not available"
+          curl -f http://localhost:8080/actuator/info || echo "Info endpoint not available"
+
+      - name: Upload Reports
+        uses: actions/upload-artifact@v3
+        with:
+          name: web-analysis-reports
+          path: |
+            lighthouse-report.*
+            .pa11y-ci-results.json
+            api-documentation/

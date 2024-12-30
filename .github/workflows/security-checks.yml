@@ -1,0 +1,53 @@
+name: Security Checks
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+  schedule:
+    - cron: '0 0 * * *'  # Run daily
+
+jobs:
+  java-security:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, profile-service, authorization-service, user-service]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run OWASP Dependency Check
+        run: |
+          cd ${{ matrix.service }}
+          mvn org.owasp:dependency-check-maven:check
+
+      - name: Run Spring Security Tests
+        run: |
+          cd ${{ matrix.service }}
+          mvn test -Dtest=*SecurityTest
+
+      - name: Run Snyk to check for vulnerabilities
+        uses: snyk/actions/maven@master
+        env:
+          SNYK_TOKEN: ${{ secrets.SNYK_TOKEN }}
+        with:
+          args: --severity-threshold=high
+          command: monitor
+
+      - name: Upload Security Reports
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: security-reports-${{ matrix.service }}
+          path: |
+            ${{ matrix.service }}/target/dependency-check-report.html
+            ${{ matrix.service }}/target/snyk.json
