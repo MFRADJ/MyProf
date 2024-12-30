@@ -1,0 +1,62 @@
+name: Performance Tests
+
+on:
+  schedule:
+    - cron: '0 0 * * 0'  # Run weekly on Sundays
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  java-performance:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_MULTIPLE_DATABASES: myprof_auth,myprof_profile,myprof_authorization
+        ports:
+          - 5432:5432
+
+    strategy:
+      matrix:
+        service: [auth-service, profile-service, authorization-service, user-service]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Build Service
+        run: |
+          cd ${{ matrix.service }}
+          mvn clean package -DskipTests
+
+      - name: Start Service
+        run: |
+          cd ${{ matrix.service }}
+          java -jar target/*.jar &
+          sleep 30
+
+      - name: Run JMeter Tests
+        uses: rbhadti94/apache-jmeter-action@v0.5.0
+        with:
+          testFilePath: ./${{ matrix.service }}/src/test/jmeter/load-test.jmx
+          outputReportsFolder: jmeter-reports/${{ matrix.service }}
+          args: "-Jthreads=50 -Jrampup=30 -Jduration=300"
+
+      - name: Generate Performance Report
+        run: |
+          cd ${{ matrix.service }}
+          mvn jmeter:results -DresultsFile=../jmeter-reports/${{ matrix.service }}/results.jtl
+
+      - name: Upload Performance Results
+        uses: actions/upload-artifact@v3
+        with:
+          name: performance-results-${{ matrix.service }}
+          path: jmeter-reports/${{ matrix.service }}

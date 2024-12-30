@@ -1,0 +1,176 @@
+{
+  "name": "Develop Branch Protection Rules",
+  "target": "branch",
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/develop"],
+      "exclude": []
+    }
+  },
+  "rules": [
+    {
+      "type": "pull_request",
+      "parameters": {
+        "dismiss_stale_reviews_on_push": true,
+        "require_code_owner_reviews": true,
+        "required_approving_review_count": 2,
+        "require_last_push_approval": true,
+        "required_review_thread_resolution": true,
+        "require_linear_history": true,
+        "allow_force_pushes": false,
+        "allow_deletions": false
+      }
+    },
+    {
+      "type": "required_status_checks",
+      "parameters": {
+        "strict_required_status_checks_policy": true,
+        "required_status_checks": [
+          {
+            "context": "myprof-auth-service/sonarcloud",
+            "integration_id": null
+          },
+          {
+            "context": "myprof-profile-service/sonarcloud",
+            "integration_id": null
+          },
+          {
+            "context": "myprof-authorization-service/sonarcloud",
+            "integration_id": null
+          },
+          {
+            "context": "myprof-user-service/sonarcloud",
+            "integration_id": null
+          },
+          {
+            "context": "java-tests (auth-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-tests (profile-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-tests (authorization-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-tests (user-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-integration (auth-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-integration (profile-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-integration (authorization-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-integration (user-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-security (auth-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-security (profile-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-security (authorization-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-security (user-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-coverage (auth-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-coverage (profile-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-coverage (authorization-service)",
+            "integration_id": null
+          },
+          {
+            "context": "java-coverage (user-service)",
+            "integration_id": null
+          },
+          {
+            "context": "build-java (auth-service)",
+            "integration_id": null
+          },
+          {
+            "context": "build-java (profile-service)",
+            "integration_id": null
+          },
+          {
+            "context": "build-java (authorization-service)",
+            "integration_id": null
+          },
+          {
+            "context": "build-java (user-service)",
+            "integration_id": null
+          }
+        ]
+      }
+    },
+    {
+      "type": "required_deployments",
+      "parameters": {
+        "required_deployment_environments": ["staging"]
+      }
+    },
+    {
+      "type": "branch_push_restrictions",
+      "parameters": {
+        "prevent_self_review": true,
+        "required_signatures": true
+      }
+    },
+    {
+      "type": "commit_message_pattern",
+      "parameters": {
+        "name": "Conventional Commits",
+        "pattern": "^(feat|fix|docs|style|refactor|perf|test|chore|ci|build|revert)(\\([\\w-]+\\))?: .{1,50}$",
+        "negate_pattern": false
+      }
+    },
+    {
+      "type": "required_workflows",
+      "parameters": {
+        "required_workflows": [
+          "code-quality.yml",
+          "security-checks.yml",
+          "unit-tests.yml",
+          "integration-tests.yml"
+        ]
+      }
+    }
+  ],
+  "bypass_actors": [
+    {
+      "actor_id": 1,
+      "actor_type": "Repository",
+      "bypass_mode": "always"
+    },
+    {
+      "actor_type": "OrganizationAdmin",
+      "bypass_mode": "pull_request"
+    }
+  ],
+  "enforcement": "active",
+  "metadata": {
+    "description": "Strict protection rules for the develop branch with high quality and security standards"
+  }
+}

@@ -1,0 +1,57 @@
+name: Service Unit Tests
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  java-service-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        service: [auth-service, profile-service, authorization-service, user-service]
+        test-type: [unit, integration, component]
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v3
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: maven
+
+      - name: Run Tests
+        run: |
+          cd ${{ matrix.service }}
+          case ${{ matrix.test-type }} in
+            unit)
+              mvn test -Dtest=**/*Test -DexcludedGroups="integration,component"
+              ;;
+            integration)
+              mvn verify -Dtest=**/*IT -Dgroups="integration"
+              ;;
+            component)
+              mvn verify -Dtest=**/*CT -Dgroups="component"
+              ;;
+          esac
+
+      - name: Generate Test Report
+        if: always()
+        run: |
+          cd ${{ matrix.service }}
+          mvn surefire-report:report-only
+          mvn site -DgenerateReports=false
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: test-results-${{ matrix.service }}-${{ matrix.test-type }}
+          path: |
+            ${{ matrix.service }}/target/surefire-reports
+            ${{ matrix.service }}/target/failsafe-reports
+            ${{ matrix.service }}/target/site
